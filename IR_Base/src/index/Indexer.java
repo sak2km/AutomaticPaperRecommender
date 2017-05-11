@@ -109,6 +109,8 @@ public class Indexer {
 	                else{
 	                	reviews= (JSONArray) obj;
 	                }
+
+	                System.out.println("Indexing: "+fileEntry.getName());
 	                for(int i=0;i<reviews.length();i++){
 	                	Document doc = new Document();          
 	                	
@@ -121,6 +123,7 @@ public class Indexer {
 	                	String authors="";
 	                	String title = "";
 	                	String journalInfo="";
+	                	String wos = "";
 	                	String documentInfo="";
 	                	String categories="";
 	                	
@@ -132,8 +135,13 @@ public class Indexer {
 	                		title = reviews.getJSONObject(i).getString("Title").toString();
 	                	if(reviews.getJSONObject(i).has("Journal Information"))
 	                		journalInfo = reviews.getJSONObject(i).getString("Journal Information").toString();
-	                	if(reviews.getJSONObject(i).has("Document Information"))
+	                	if(reviews.getJSONObject(i).has("Document Information")){	                		
 	                		documentInfo = reviews.getJSONObject(i).getString("Document Information").toString();
+	                		if(documentInfo.contains("WOS:")){
+		                		wos = documentInfo.substring(documentInfo.indexOf("WOS:"));
+		                		wos = wos.substring(4,wos.indexOf(" "));		                			
+	                		}
+	                	}
 	                	if(reviews.getJSONObject(i).has("Categories"))
 	                		categories = reviews.getJSONObject(i).getString("Categories").toString();
 	                	
@@ -143,6 +151,7 @@ public class Indexer {
 	                    doc.add(new Field("journalInfo", journalInfo, _contentFieldType));
 	                    doc.add(new Field("documentInfo", documentInfo, _contentFieldType));
 	                    doc.add(new Field("categories", categories, _contentFieldType));
+	                    doc.add(new Field("wos", wos, _contentFieldType));
 	                    
 	         // For old (Rizwan) cralwed Data      	
 	 /*               	String Content = reviews.getJSONObject(i).getString("Content").toString();
@@ -164,7 +173,7 @@ public class Indexer {
 	                        System.out.println(" -> indexed " + indexed + " docs...");
 	                	
 	                }
-	                System.out.println(fileEntry.getName()+" indexing complete");
+	           //     System.out.println(fileEntry.getName()+" indexing complete");
             	
             	
             	}

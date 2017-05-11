@@ -55,6 +55,11 @@ public class Searcher
         {
             exception.printStackTrace();
         }
+    } 
+    public Searcher(IndexReader reader) {
+        indexSearcher = new IndexSearcher(reader);
+        analyzer = new SpecialAnalyzer();
+        formatter = new SimpleHTMLFormatter("****", "****");
     }
 
     public void setSimilarity(Similarity sim)
@@ -111,7 +116,7 @@ public class Searcher
      * @param numResults
      * @return the SearchResult
      */
-    private SearchResult runSearch(Query luceneQuery, SearchQuery searchQuery)
+    public SearchResult runSearch(Query luceneQuery, SearchQuery searchQuery)
     {
         try
         {
@@ -149,6 +154,7 @@ public class Searcher
                     rdoc.title("" + (hit.doc + 1));
                     String contents = doc.getField(field).stringValue();
                     rdoc.content(contents);
+                    rdoc.wos(doc.getField("wos").stringValue());	//Added by sak2km, adds wos# as a field in resultDoc
                     String[] snippets = highlighter.getBestFragments(analyzer, field, contents, numFragments);
                     highlighted = createOneSnippet(snippets);
                 }

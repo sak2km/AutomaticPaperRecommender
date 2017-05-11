@@ -22,6 +22,7 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
+	<classpathentry exported="true" kind="lib" path="libs/mysql-connector-java-5.1.41-bin.jar"/>
 	<classpathentry kind="lib" path="libs/json-simple-1.1.1.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.eclipse.jst.server.tomcat.runtimeTarget/Apache Tomcat v8.5"/>
 	<classpathentry kind="lib" path="libs/lucene-4.6.0/lucene-analyzers-common-4.6.0.jar"/>
@@ -54,6 +55,6 @@
 	<classpathentry kind="lib" path="libs/crawler/xercesImpl-2.11.0.jar"/>
 	<classpathentry kind="lib" path="libs/crawler/xml-apis-1.4.01.jar"/>
 	<classpathentry kind="lib" path="libs/crawler/WebOfScienceCrawler.jar"/>
-	<classpathentry kind="lib" path="libs/mysql-connector-java-5.1.41-bin.jar"/>
+	<classpathentry kind="lib" path="libs/servlet-api.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

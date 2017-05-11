@@ -4,6 +4,7 @@ public class ResultDoc {
     private int _id;
     private String _title = "[no title]";
     private String _content = "[no content]";
+    private String _wos = "[no wos]";
 
     public ResultDoc(int id) {
         _id = id;
@@ -25,9 +26,18 @@ public class ResultDoc {
     public String content() {
         return _content;
     }
-
+    
     public ResultDoc content(String nContent) {
         _content = nContent;
+        return this;
+    }
+
+    public String wos() {
+        return _wos;
+    }
+    
+    public ResultDoc wos(String nWos) {
+        _wos = nWos;
         return this;
     }
 }

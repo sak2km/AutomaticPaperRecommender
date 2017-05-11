@@ -298,6 +298,7 @@ public class PaperReco {
 				}
 	            System.out.println("\n------------------------------------------------------");
 	            System.out.println(rank + ". " + rdoc.title());
+	            System.out.println("WOS #: "+ rdoc.wos());
 	            System.out.println("------------------------------------------------------");
 	            System.out.println(result.getSnippet(rdoc)
 	                    .replaceAll("\n", " "));

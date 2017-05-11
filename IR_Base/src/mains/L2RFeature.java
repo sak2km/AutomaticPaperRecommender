@@ -1,37 +1,29 @@
 package mains;
-//package index;
 
 //import com.sun.java.util.jar.pack.ConstantPool;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.FieldInvertState;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.index.*;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.*;
+import org.apache.lucene.search.highlight.QueryTermExtractor;
+import org.apache.lucene.search.highlight.WeightedTerm;
 import org.apache.lucene.search.similarities.*;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
-import org.apache.lucene.search.Query;
 import index.SpecialAnalyzer;
-import org.jsoup.select.Evaluator;
-
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.Hashtable;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Created by yj9xs on 4/14/17.
+ * Created by Yiling on 4/14/17.
  */
 public class L2RFeature {
 
@@ -41,169 +33,123 @@ public class L2RFeature {
     final IndexReader reader;
     final IndexSearcher searcher;
     static int numDocs;
-    static int numHits;
+    static int numHits = 0;
     static Analyzer analyzer = new index.SpecialAnalyzer();
     static double[][] feature;
+//    static double[][] testfeature;
+//    static List<List<Double>> newfeature = new ArrayList<>();
     static int NumofFeature;
-    static int NumofSim = 20;
+    static int NumofSim = 6;
     static int NumofNotSimFeature = 0;
-    Hashtable<Integer, Integer> DocIndex;
+    static int test  = 0;
+    static int indexbase = 0;
+    static Hashtable<Integer, Integer> DocIndex;
+    static Hashtable<Integer, Integer> InverseDocIndex;
     Similarity[] sims;
+    Similarity similarity;
 
     public L2RFeature(IndexReader r) {
         reader = r;
         searcher = new IndexSearcher(r);
         numDocs = r.numDocs();
-        NumofFeature = NumofSim + NumofNotSimFeature;
-        SetSims();
+        NumofFeature = NumofSim * 7 + NumofNotSimFeature;
+        SetSimilarity();
     }
 
-    public void SetSims(){
+    public void SetSimilarity(){
         sims = new Similarity[NumofSim];
-        int index = NumofNotSimFeature;
+        int index = 0;
 
         sims[index++] = new DefaultSimilarity();
         sims[index++] = new BM25Similarity((float)1.2, (float)0.75);
-        // DFRSimilairity: 7*3*5
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectL(), new NormalizationH1());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectL(), new NormalizationH2());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectL(), new NormalizationH3());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectL(), new NormalizationZ());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectB(), new NormalizationH1());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectB(), new NormalizationH2());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectB(), new NormalizationH3());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectB(), new NormalizationZ());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffect.NoAfterEffect(), new NormalizationH1());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffect.NoAfterEffect(), new NormalizationH2());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffect.NoAfterEffect(), new NormalizationH3());
-        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffect.NoAfterEffect(), new NormalizationZ());
-        // IBSimilarity: 2*2*5
-        sims[index++] = new IBSimilarity(new DistributionLL(), new LambdaDF(), new NormalizationH1());
-        sims[index++] = new IBSimilarity(new DistributionLL(), new LambdaDF(), new NormalizationH2());
-        sims[index++] = new IBSimilarity(new DistributionLL(), new LambdaDF(), new NormalizationH3());
-        sims[index++] = new IBSimilarity(new DistributionLL(), new LambdaDF(), new NormalizationZ());
-        // LMSimilarity
         sims[index++] = new LMDirichletSimilarity();
         sims[index++] = new LMJelinekMercerSimilarity((float)0.7);
+        sims[index++] = new DFRSimilarity(new BasicModelBE(), new AfterEffectL(), new NormalizationH1());
+        sims[index] = new IBSimilarity(new DistributionLL(), new LambdaDF(), new NormalizationH1());
+        similarity = new MultiSim(sims);
     }
 
-    public void setSimilarity(Similarity sim){searcher.setSimilarity(sim);}
-
-    public Similarity getSimilarity(){return searcher.getSimilarity();}
-
-    public ScoreDoc[] Query(Query q) throws IOException {
-        TopDocs docs = searcher.search(q, numDocs);
-        ScoreDoc[] hits = docs.scoreDocs;
-        return hits;
+    public double[][] GetFeature(){
+        return feature;
     }
 
-    public ScoreDoc[] Query(String query, Similarity sim) throws IOException, ParseException {
-        searcher.setSimilarity(sim);
-        Query luceneQuery = new QueryParser(Version.LUCENE_46, "content", analyzer).parse(query);
-        return Query(luceneQuery);
-    }
+    public Hashtable<Integer, Integer> getDocIndex(){return DocIndex;}  //(docid, index)
+    public Hashtable<Integer, Integer> getInverseDocIndex(){return InverseDocIndex;} //(index, docid)
 
-    public Hashtable<Integer, Integer> CreateDocIndex(ScoreDoc[] hits){
+    public void CreateDocIndex(ScoreDoc[] hits){
 
-        Hashtable<Integer, Integer> DocIndex = new Hashtable<Integer, Integer>();
+        DocIndex = new Hashtable<Integer, Integer>();
+        InverseDocIndex = new Hashtable<>();
         int size = hits.length;
         int DocId;
         for (int i = 0; i < size; i++){
             DocId = hits[i].doc;
             DocIndex.put(DocId, i);
+            InverseDocIndex.put(i, DocId);
         }
-        return DocIndex;
     }
 
-    public double[][] UpdateFeature(ScoreDoc[] hits, double[][] feature, int index){
-
-        int featureidx;
-        for (int i = 0; i < hits.length; i++){
-            featureidx = DocIndex.get(hits[i].doc);
-            feature[featureidx][index] = hits[i].score;
+    public void printfeature(){
+        for (int i = 0; i < NumofFeature; i++){
+            System.out.print(feature[0][i] + " ");
         }
-        return feature;
+        System.out.print("\n\n");
     }
-
-//    public double[][] GetNoSimFeature(ScoreDoc[] hits, double[][] feature){
-//        int featureidx;
-//        for (*)
-//    }
     public void GenerateFeature(String query) throws IOException, ParseException{
+    	indexbase = 0;
+        String[] fields = {"abstractInfo", "authors", "title", "journalInfo", "documentInfo", "categories"};
+        Query q = new MultiFieldQueryParser(Version.LUCENE_46, fields, analyzer).parse(query);
 
-        ScoreDoc[] hits;
+        TopDocs docs = searcher.search(q, numDocs);
+        ScoreDoc[] hits = docs.scoreDocs;
+        
+        for(ScoreDoc hit : hits){
+            Document doc = searcher.doc(hit.doc);
+            String contents = doc.getField("title").stringValue();
+            String wos = doc.getField("wos").stringValue(); //Added by sak2km, adds wos# as a field in resultDoc
+  //          System.out.println(contents);
+   //         System.out.println(wos);
+        }
 
         // default similarity
-        hits = Query(query, sims[1]);
-        DocIndex = CreateDocIndex(hits);
+        CreateDocIndex(hits);
         numHits = hits.length;
         feature = new double[numHits][NumofFeature];
 
-//        feature = GetNoSimFeature(hits, feature);
+        searcher.setSimilarity(similarity);
+        docs = searcher.search(q, numDocs);
+        hits = docs.scoreDocs;
+    //    printfeature();
 
-        feature = UpdateFeature(hits, feature, NumofNotSimFeature);
+//        System.out.print(searcher.explain(q, getInverseDocIndex().get(0)));
 
-        for (int i = NumofNotSimFeature; i < NumofFeature; i++){
-            hits = Query(query, sims[i]);
-            feature = UpdateFeature(hits, feature, i);
+        for (int i = 0; i < 6; i++){
+            indexbase++;
+            q = new QueryParser(Version.LUCENE_46, fields[i], analyzer).parse(query);
+            searcher.search(q, numDocs);
+   //         printfeature();
         }
     }
 
     public double[] GetFeatureVector(int docid){
-
-        if (DocIndex.containsKey(docid))
-            return feature[DocIndex.get(docid)];
-        else
-            System.out.println("Document " + docid + " is not hit.\n");
-            return feature[0];
+        int Idx = DocIndex.get(docid);
+        return feature[Idx];
     }
 
     public static void main(String[] args) throws IOException, ParseException{
 
 
-        String path = "lucene-paper-index";
-
-		String _indexPath = System.getenv().get("Index_path");
+//        String path = "./data/lucene-paper-index";
+//        IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(path)));
+        String path = "./data/lucene-paper-index";
+        String _indexPath = System.getenv().get("Index_path");
         IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(_indexPath)));
-        L2RFeature feature = new L2RFeature(reader);
+
+        
+    	L2RFeature f = new L2RFeature(reader);
+        f.GenerateFeature("machine learning");
 
 
-        String query;
-        int docid;
-        double[] FeatureVec;
-
-
-        BufferedReader input = new BufferedReader(new InputStreamReader(System.in));
-
-        System.out.print("Enter the query: ");
-        query = input.readLine();
-
-        while (!query.equals("Exit")) {
-            System.out.print("Query: " + query + "\n");
-            feature.GenerateFeature(query);
-            System.out.println(feature.numHits + " Documents are hit.\n");
-
-
-            System.out.print("Enter the document ID (Enter -1 to begin a new query): ");
-//            docid = scanner.nextInt();
-            docid = Integer.parseInt(input.readLine());
-            while (docid >= 0) {
-                if (!feature.DocIndex.containsKey(docid))
-                    System.out.print("Document " + docid + " is not hit.\n");
-                else {
-                    FeatureVec = feature.GetFeatureVector(docid);
-                    System.out.print("Feature Vector for document " + docid + ":\n");
-                    for (int i = 0; i < feature.NumofFeature; i++)
-                        System.out.print(FeatureVec[i] + " ");
-                    System.out.print("\n");
-                }
-                System.out.print("Enter the document ID (Enter -1 to begin a new query): ");
-                docid = Integer.parseInt(input.readLine());
-            }
-            System.out.print("\n----------------\n");
-            System.out.print("Enter the query: ");
-            query = input.readLine();
-        }
 
 
     }
